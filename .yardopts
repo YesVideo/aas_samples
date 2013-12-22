@@ -1,0 +1,1 @@
+--no-private --title "YesVideo Archive as a Service SDK" --output-dir ruby/doc ruby/aas_sdk.rb
