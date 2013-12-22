@@ -1,0 +1,163 @@
+#!/usr/bin/env ruby
+
+require_relative './aas_sdk'
+require 'trollop'
+require 'active_support/core_ext/string/strip'
+require 'find'
+
+bin_name = File.basename(__FILE__)
+
+files = nil
+cmd_opts = {
+  'collections' => nil,
+  'orders' => nil,
+  'files' => ->{Trollop::options do
+      opt :collection_id, 'Collection ID', type: :string
+    end},
+  'upload' => ->{Trollop::options do
+      opt :collection_id, 'Collection ID', type: :string
+      files = ARGV
+    end},
+  'rm' => ->{Trollop::options do
+      opt :collection_id, 'Collection ID', type: :string
+      opt :file_id, 'File ID', type: :string
+    end},
+  'burn' => ->{Trollop::options do
+      opt :collection_id, 'Collection ID', type: :string
+      opt :test, "test upload (no disc)", default: false
+      opt :title, 'disc title', type: :string
+      opt :recipient, 'shipping recipient', type: :string
+      opt :address1, 'shipping address line 1', type: :string
+      opt :address2, 'shipping address line 2', type: :string
+      opt :city, 'city', type: :string
+      opt :state, 'state', type: :string
+      opt :postal_code, 'postal code', type: :string
+      opt :phone_number, 'recipient phone number', type: :string
+    end}
+}
+
+opts = Trollop::options do
+  banner <<-EOS.strip_heredoc
+    #{bin_name} is a tool for uploading collections of files to YesVideo AAS and placing orders.
+
+    Usage: #{bin_name} [credentials] <command> [options]
+
+    Commands: #{cmd_opts.keys.join(', ')}
+
+    For command help: #{bin_name} <command> -h
+
+    Credentials options:
+    EOS
+
+  opt :client_id, 'Client ID', short: 'u', type: :string, default: ENV['AAS_CLIENT_ID'], required: ! ENV['AAS_CLIENT_ID']
+  opt :secret, 'Secret', short: 'p', type: :string, default: ENV['AAS_SECRET'], required: ! ENV['AAS_SECRET']
+
+  stop_on cmd_opts.keys
+end
+
+cmd = ARGV.shift # get the subcommand
+if opts2 = cmd_opts[cmd]
+  opts.merge!(opts2[])
+end
+
+def format_int(n)
+  ("%.1f" % n).reverse.gsub(/(\d{3})(?=\d)/, '\\1,').reverse
+end
+
+def format_bytes(n)
+  sym, pow = *({G: 3, M: 2, K: 1}.each.find{|sym, pow| n >= 1024**pow} || [:B, 0])
+  "#{format_int(n.to_f / 1024**pow)} #{sym}"
+end
+
+# AasSdk.setup(opts[:client_id], opts[:secret])
+AasSdk.setup(opts[:client_id], opts[:secret], 'http://local.aas.yesvideo.com:3000/')
+
+case cmd
+when 'collections'
+  collections = AasSdk::Collection.index
+  if collections.empty?
+    puts '<none>'
+  else
+    collections.each do |c|
+      puts <<-EOS.strip_heredoc
+        Collection       #{c.id}
+          created at:    #{c.created_at.iso8601}
+          expires at:    #{c.expires_at.iso8601}
+          type:          #{c.type}
+          upload status: #{c.upload_status}
+          bytes:         #{format_bytes(c.bytes)}
+          bytes left:    #{format_bytes(c.bytes_left)}
+        
+      EOS
+    end
+  end
+
+when 'files'
+  collection = AasSdk::Collection.find(opts[:collection_id])
+  collection.files.each do |f|
+    puts <<-EOS.strip_heredoc
+      File              #{f.id}
+        path:           #{f.path}
+        chunked status: #{f.chunked_status}
+        bytes:          #{format_bytes(f.bytes)}
+      
+    EOS
+  end
+  
+when 'upload'
+  collection = AasSdk::Collection.find(opts[:collection_id])
+  files.each do |root|
+    root = File.absolute_path(root)
+    strip_leading_n = root.length - File.basename(root).length
+
+    Find.find(root) do |path|
+      if FileTest.directory?(path)
+        next
+      end
+
+      relpath = path[strip_leading_n..-1]
+
+      puts "Uploading #{relpath}..."
+      collection.upload_file(relpath, path)
+    end
+  end
+
+when 'rm'
+  collection = AasSdk::Collection.find(opts[:collection_id])
+  unless (fid = opts[:file_id])
+    collection.destroy
+  else
+    file = collection.find_file(opts[:file_id])
+    file.destroy
+  end
+
+when 'burn'
+  collection = AasSdk::Collection.find(opts[:collection_id])
+  collection.set_complete unless collection.upload_status == 'complete'
+
+  ship_to = AasSdk::Order::ShipTo.new(opts.clone.keep_if{|k,v|[:recipient, :address1, :address2, :city, :state, :postal_code, :phone_number].include?(k)})
+  order = AasSdk::Order.create(opts[:collection_id], opts[:title], ship_to, opts[:test])
+  puts "Created order #{order.id}"
+
+when 'orders'
+  orders = AasSdk::Order.index
+  if orders.empty?
+    puts '<none>'
+  else
+    orders.each do |o|
+      puts <<-EOS.strip_heredoc
+        Order            #{o.id}
+          created at:    #{o.created_at.iso8601}
+          updated at:    #{o.updated_at.iso8601}
+          collection id: #{o.collection_id}
+          title:         #{o.title}
+          ship_to:       #{o.ship_to}
+          status:        #{o.status}
+
+      EOS
+    end
+  end
+
+else
+  Trollop::die "unknown command #{cmd}"
+end
