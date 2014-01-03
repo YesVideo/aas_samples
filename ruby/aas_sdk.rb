@@ -41,7 +41,7 @@ require 'rest-client'
 #   AasSdk::Order.find(order.id).status
 #
 class AasSdk
-  MAX_CHUNK_BYTES = 1024**3 # 1GB
+  MAX_CHUNK_BYTES = [(ENV['AAS_MAX_CHUNK_BYTES'] || 1024**3).to_i, 1024].max # 1GB default, 1K min
   private_constant :MAX_CHUNK_BYTES
 
   # Base class with various helper methods.
@@ -198,6 +198,7 @@ class AasSdk
             i += 1
           end
         end
+        file.set_complete
         file
       end
     end
