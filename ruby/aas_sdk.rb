@@ -403,7 +403,9 @@ class AasSdk
     #   @return ['received', 'burning', 'shipped', 'test_complete'] The current order status.
     # @!attribute ship_to
     #   @return [ShipTo] The shipping information.
-    attr_accessor :id, :created_at, :updated_at, :collection_id, :title, :status, :ship_to
+    # @!attribute total
+    #   @return [String] The order price.
+    attr_accessor :id, :created_at, :updated_at, :collection_id, :title, :status, :ship_to, :total
     timestamp :created_at, :updated_at
 
     # Sets ship_to from either a ShipTo instance of from a Hash of ShipTo attributes.

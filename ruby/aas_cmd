@@ -9,30 +9,33 @@ bin_name = File.basename(__FILE__)
 
 files = nil
 cmd_opts = {
+  'create_collection' => ->{Trollop::options do
+      opt :type, 'dvd_4_7G | blueray_25G', type: :string, required: true
+    end},
   'collections' => nil,
   'orders' => nil,
   'files' => ->{Trollop::options do
-      opt :collection_id, 'Collection ID', type: :string
+      opt :collection_id, 'Collection ID', type: :string, required: true
     end},
   'upload' => ->{Trollop::options do
-      opt :collection_id, 'Collection ID', type: :string
+      opt :collection_id, 'Collection ID', type: :string, required: true
       files = ARGV
     end},
   'rm' => ->{Trollop::options do
-      opt :collection_id, 'Collection ID', type: :string
+      opt :collection_id, 'Collection ID', type: :string, required: true
       opt :file_id, 'File ID', type: :string
     end},
   'burn' => ->{Trollop::options do
-      opt :collection_id, 'Collection ID', type: :string
+      opt :collection_id, 'Collection ID', type: :string, required: true
       opt :test, "test upload (no disc)", default: false
       opt :title, 'disc title', type: :string
-      opt :recipient, 'shipping recipient', type: :string
-      opt :address1, 'shipping address line 1', type: :string
+      opt :recipient, 'shipping recipient', type: :string, required: true
+      opt :address1, 'shipping address line 1', type: :string, required: true
       opt :address2, 'shipping address line 2', type: :string
-      opt :city, 'city', type: :string
-      opt :state, 'state', type: :string
-      opt :postal_code, 'postal code', type: :string
-      opt :phone_number, 'recipient phone number', type: :string
+      opt :city, 'city', type: :string, required: true
+      opt :state, 'state', type: :string, required: true
+      opt :postal_code, 'postal code', type: :string, required: true
+      opt :phone_number, 'recipient phone number', type: :string, required: true
     end}
 }
 
@@ -69,10 +72,13 @@ def format_bytes(n)
   "#{format_int(n.to_f / 1024**pow)} #{sym}"
 end
 
-# AasSdk.setup(opts[:client_id], opts[:secret])
-AasSdk.setup(opts[:client_id], opts[:secret], 'http://local.aas.yesvideo.com:3000/')
+AasSdk.setup(opts[:client_id], opts[:secret], (ENV['AAS_SERVER'] || 'https://aas.yesvideo.com/'))
 
 case cmd
+when 'create_collection'
+  collection = AasSdk::Collection.create(opts[:type])
+  puts "Created collection #{collection.id}"
+
 when 'collections'
   collections = AasSdk::Collection.index
   if collections.empty?
@@ -152,6 +158,7 @@ when 'orders'
           collection id: #{o.collection_id}
           title:         #{o.title}
           ship_to:       #{o.ship_to}
+          total:         #{o.total}
           status:        #{o.status}
 
       EOS
