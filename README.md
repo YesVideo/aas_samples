@@ -38,3 +38,7 @@ Sample usage:
     
     # list orders
     aas_cmd orders
+    
+# JavaScript samples
+
+See [aas_demo](https://github.com/YesVideo/aas_demo) for a sample web interface to AaS using JavaScript.

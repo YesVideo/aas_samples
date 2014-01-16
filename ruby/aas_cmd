@@ -10,7 +10,7 @@ bin_name = File.basename(__FILE__)
 files = nil
 cmd_opts = {
   'create_collection' => ->{Trollop::options do
-      opt :type, 'dvd_4_7G | blueray_25G', type: :string, required: true
+      opt :type, 'dvd_4_7G | blu_ray_25G', type: :string, required: true
     end},
   'collections' => nil,
   'orders' => nil,
@@ -18,6 +18,11 @@ cmd_opts = {
       opt :collection_id, 'Collection ID', type: :string, required: true
     end},
   'upload' => ->{Trollop::options do
+      banner <<-EOS.strip_heredoc
+        Usage: #{bin_name} [credentials] upload [options] files_and_directories...
+
+        EOS
+
       opt :collection_id, 'Collection ID', type: :string, required: true
       files = ARGV
     end},
@@ -86,13 +91,14 @@ when 'collections'
   else
     collections.each do |c|
       puts <<-EOS.strip_heredoc
-        Collection       #{c.id}
-          created at:    #{c.created_at.iso8601}
-          expires at:    #{c.expires_at.iso8601}
-          type:          #{c.type}
-          upload status: #{c.upload_status}
-          bytes:         #{format_bytes(c.bytes)}
-          bytes left:    #{format_bytes(c.bytes_left)}
+        Collection        #{c.id}
+          created at:     #{c.created_at.iso8601}
+          expires at:     #{c.expires_at.iso8601}
+          type:           #{c.type}
+          upload status:  #{c.upload_status}
+          s3 copy status: #{f.s3_copy_status}
+          bytes:          #{format_bytes(c.bytes)}
+          bytes left:     #{format_bytes(c.bytes_left)}
         
       EOS
     end
@@ -105,6 +111,7 @@ when 'files'
       File              #{f.id}
         path:           #{f.path}
         chunked status: #{f.chunked_status}
+        s3 copy status: #{f.s3_copy_status}
         bytes:          #{format_bytes(f.bytes)}
       
     EOS

@@ -116,7 +116,7 @@ class AasSdk
 
       # Creates a collection.
       #
-      # @param type ['dvd_4_7G', 'blueray_25G'] Type of collection to create.
+      # @param type ['dvd_4_7G', 'blu_ray_25G'] Type of collection to create.
       # @return [Collection]
       def create(type = 'dvd_4_7G')
         new(AasSdk.post('collections', {type: type}))
@@ -144,10 +144,12 @@ class AasSdk
     # @!attribute bytes_left
     #   @return [Integer] the byte capacity remaining.
     # @!attribute type
-    #   @return ['dvd_4_7G', 'blueray_25G'] the collection type
+    #   @return ['dvd_4_7G', 'blu_ray_25G'] the collection type
     # @!attribute upload_status
     #   @return ['ready', 'complete', 'expired'] the collection upload status
-    attr_accessor :id, :created_at, :expires_at, :type, :upload_status, :bytes, :bytes_left
+    # @!attribute s3_copy_status
+    #   @return ['copying', 'complete', 'failed'] overall status for files in this collection created via S3 copy
+    attr_accessor :id, :created_at, :expires_at, :type, :upload_status, :s3_copy_status, :bytes, :bytes_left
     timestamp :created_at, :expires_at
 
     # Sets the collection status to complete (and ready for burning).
@@ -242,9 +244,11 @@ class AasSdk
     #   @return [String] The path that will be used when burning this file to disc.
     # @!attribute chunked_status
     #   @return ['none', 'ready', 'complete', 'merged'] The chunked upload status.
+    # @!attribute s3_copy_status
+    #   @return ['copying', 'complete', 'failed'] Status for files created via S3 copy.
     # @!attribute bytes
     #   @return [Integer] the byte size of this file (or of its constituent parts, once marked complete).
-    attr_accessor :id, :collection_id, :path, :chunked_status, :bytes
+    attr_accessor :id, :collection_id, :path, :chunked_status, :s3_copy_status, :bytes
 
     # Sets the chunked upload status to complete.
     #
